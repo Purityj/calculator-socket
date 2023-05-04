@@ -4,6 +4,9 @@ A client server program which implements a simple calculator. The calculator can
 To run it:
 
 Client: gcc iter_connectionless_client.c -o icc
+
       : ./icc
+      
 Server: gcc iter_connectionless_server.c -o ics
+
       : ./ics
