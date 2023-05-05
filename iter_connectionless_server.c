@@ -9,57 +9,56 @@
 
 int main()
 {
-    int sock = 0;
-    struct sockaddr_in serv_addr, client_addr;
+    struct sockaddr_in serv_addr, cli_addr;
     char buffer[1024] = {0};
-    int client_addr_len;
+    int num1, num2, result;
+    char operator;
+    socklen_t addr_len = sizeof(cli_addr);
 
-    // Create a socket file descriptor
-    if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+    // Create a socket
+    int server_socket = socket(AF_INET, SOCK_DGRAM, 0);
+    if (server_socket < 0)
     {
-        printf("\nSocket creation error \n");
+        printf("Socket creation error\n");
         return -1;
     }
 
-    // Set server address and port
+    // Bind the socket to a port
     memset(&serv_addr, '0', sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     serv_addr.sin_port = htons(PORT);
 
-    // Bind the socket to the server address and port
-    if (bind(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+    if (bind(server_socket, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
     {
-        printf("\nBind error \n");
+        printf("Bind failed\n");
         return -1;
     }
 
-    printf("Server listening on port %d\n", PORT);
-
+    // Loop until the program is terminated
     while (1)
     {
-        // Receive data from a client
-        client_addr_len = sizeof(client_addr);
-        int valread = recvfrom(sock, buffer, 1024, 0, (struct sockaddr *)&client_addr, &client_addr_len);
+        // Receive the expression from the client
+        memset(buffer, 0, sizeof(buffer));
+        recvfrom(server_socket, buffer, sizeof(buffer), 0, (struct sockaddr *)&cli_addr, &addr_len);
+        printf("Received expression: %s\n", buffer);
 
-        // Parse the user's input
-        int num1, num2, result;
-        char operator;
+        // Parse the expression
         sscanf(buffer, "%d %c %d", &num1, &operator, &num2);
 
-        // Perform the calculation based on the operator
+        // Calculate the result
         switch (operator)
         {
-        case '+':
-            result = num1 + num2;
-            break;
-        case '-':
-            result = num1 - num2;
-            break;
-        case '*':
-            result = num1 * num2;
-            break;
-        case '/':
+            case '+':
+                result = num1 + num2;
+                break;
+            case '-':
+                result = num1 - num2;
+                break;
+            case '*':
+                result = num1 * num2;
+                break;
+            case '/':
             if (num2 == 0)
             {
                 result = -1;
@@ -70,15 +69,29 @@ int main()
                 result = num1 / num2;
             }
             break;
-        default:
-            result = -1;
-            printf("Invalid operator\n");
+            default:
+                printf("Invalid operator\n");
+                continue;
         }
 
-        // Send the result back to the client
-        char response[1024];
-        sprintf(response, "Result: %d\n", result);
-        sendto(sock, response, strlen(response), 0, (struct sockaddr *)&client_addr, client_addr_len);
+        // Print the result
+        printf("Result: %d\n", result);
+
+        // Write the result to a file
+        FILE *fp = fopen("results.txt", "a");
+        if (fp != NULL)
+        {
+            fprintf(fp, "%d %c %d = %d\n", num1, operator, num2, result);
+            fclose(fp);
+        }
+        else
+        {
+            printf("Failed to open file\n");
+        }
+
+        // Send the result to the client
+        sprintf(buffer, "%d", result);
+        sendto(server_socket, buffer, strlen(buffer), 0, (struct sockaddr *)&cli_addr, addr_len);
     }
 
     return 0;
